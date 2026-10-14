@@ -1,0 +1,81 @@
+{
+  "series_id": "series_lighthouse",
+  "series_title": "바위곶의 등대지기 (테스트용 자작 소설)",
+  "entities": [
+    {
+      "entity_id": "character_lian",
+      "canonical_name": "리안",
+      "kind": "character",
+      "aliases": ["리안"]
+    },
+    {
+      "entity_id": "character_havel",
+      "canonical_name": "하벨",
+      "kind": "character",
+      "aliases": ["하벨", "하벨 영감"]
+    },
+    {
+      "entity_id": "character_sera",
+      "canonical_name": "세라",
+      "kind": "character",
+      "aliases": ["세라"]
+    },
+    {
+      "entity_id": "character_morgan",
+      "canonical_name": "모르간 영주",
+      "kind": "character",
+      "aliases": ["모르간", "모르간 영주"]
+    },
+    {
+      "entity_id": "character_grey_knight",
+      "canonical_name": "회색 기사",
+      "kind": "character",
+      "aliases": ["회색 기사"]
+    },
+    {
+      "entity_id": "character_kaiden",
+      "canonical_name": "카이든",
+      "kind": "character",
+      "aliases": [
+        "카이든",
+        {"text": "회색 기사", "revealed_at": {"book": 2, "chapter": 3}}
+      ]
+    },
+    {
+      "entity_id": "character_ayla",
+      "canonical_name": "에일라",
+      "kind": "character",
+      "aliases": ["에일라"]
+    },
+    {
+      "entity_id": "location_ellen",
+      "canonical_name": "엘른",
+      "kind": "location",
+      "aliases": ["엘른"]
+    },
+    {
+      "entity_id": "location_lighthouse",
+      "canonical_name": "바위곶 등대",
+      "kind": "location",
+      "aliases": ["바위곶 등대", "등대"]
+    },
+    {
+      "entity_id": "location_black_reef",
+      "canonical_name": "검은 암초",
+      "kind": "location",
+      "aliases": ["검은 암초"]
+    },
+    {
+      "entity_id": "location_karben",
+      "canonical_name": "카르벤",
+      "kind": "location",
+      "aliases": ["카르벤"]
+    },
+    {
+      "entity_id": "item_logbook",
+      "canonical_name": "항해일지",
+      "kind": "item",
+      "aliases": ["항해일지", "일지"]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+anthropic>=1.13
+streamlit>=1.65
+pytest>=9.0
