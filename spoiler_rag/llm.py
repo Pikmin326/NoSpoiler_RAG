@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from . import firewall
+from .config import load_env
 from .models import Chunk, Turn
 
 DEFAULT_MODEL = "claude-haiku-5-5"
@@ -18,7 +19,7 @@ SYSTEM_PROMPT = """역할: 독서 진행도를 준수하는 소설 도우미
    "나중에 밝혀진다", "중요한 역할을 하게 된다", "스포일러라서 말할 수 없다" 같은 표현도 쓰지 않는다.
 4. 근거만으로 답할 수 없으면 "현재 읽은 범위의 근거만으로는 확인할 수 없어요."라고 짧게 말한다.
 5. 인물의 관계나 동기를 사실처럼 단정하지 말고, 근거가 명시하는 범위를 지킨다.
-6. 핵심 주장 뒤에는 근거 ID를 [C0001] 형식으로 붙인다. 제공되지 않은 ID는 절대 만들지 않는다.
+6. 핵심 주장 뒤에는 근거 ID를 [C0001] 형식으로 붙인다. 요약·상태 자료의 ID([S0001], [B0001], [P0001])도 같은 방식으로 쓴다. 제공되지 않은 ID는 절대 만들지 않는다.
 7. 원문에 명시된 사실과 추론을 구분한다. 추론은 "(추론)"이라고 표시한다.
 8. 한국어로 간결하게 답한다."""
 
@@ -44,7 +45,7 @@ class GenerationRefused(RuntimeError):
 
 def format_evidence(evidence: list[Chunk]) -> str:
     return "\n\n".join(
-        f'<chunk id="{c.chunk_id}" location="{c.location_label}">\n{c.text}\n</chunk>'
+        f'<chunk id="{c.chunk_id}" type="{c.content_type}" location="{c.location_label}">\n{c.text}\n</chunk>'
         for c in evidence
     )
 
@@ -109,6 +110,7 @@ class ClaudeGenerator:
 
 def try_create_claude(model: str = DEFAULT_MODEL, effort: str = "medium") -> tuple[Generator | None, str]:
     """Claude 클라이언트를 만들 수 있으면 반환하고, 아니면 (None, 사유)를 반환한다."""
+    load_env()  # .env의 ANTHROPIC_API_KEY 등을 환경 변수로 반영
     try:
         generator = ClaudeGenerator(model=model, effort=effort)
     except ImportError:

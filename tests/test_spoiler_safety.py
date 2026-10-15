@@ -8,7 +8,8 @@ from __future__ import annotations
 import pytest
 
 from spoiler_rag import NEUTRAL_ANSWER, SpoilerSafeRAG
-from spoiler_rag.config import ENTITIES_PATH, NOVEL_PATH
+from spoiler_rag.config import SAMPLE_ENTITIES_PATH as ENTITIES_PATH
+from spoiler_rag.config import SAMPLE_NOVEL_PATH as NOVEL_PATH
 from spoiler_rag.corpus import chunk_corpus, parse_novel
 from spoiler_rag.firewall import SpoilerLeakError, assert_safe, enforce
 from spoiler_rag.llm import ClaudeGenerator

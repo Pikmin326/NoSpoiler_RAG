@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -124,8 +125,33 @@ class EntityCatalog:
         # 같은 문자열이 다른 엔티티의 별칭으로 이미 알려져 있다면(예: "회색 기사") 금지어가 아니다.
         return future - known
 
+    def fingerprint(self) -> str:
+        """사전 내용의 해시. 사전이 바뀌면 이 사전으로 만든 요약·스냅샷 캐시를 다시 만들어야 한다."""
+        payload = sorted(
+            (e.entity_id, e.kind, sorted((a.text, a.revealed_at or (0, 0)) for a in e.aliases))
+            for e in self.entities.values()
+        )
+        return hashlib.sha1(json.dumps(payload, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
+
     def name(self, entity_id: str) -> str:
+        """정식 이름. 시점과 무관하므로 사용자나 모델에 보여 줄 때는 `display_name`을 쓴다."""
         return self.entities[entity_id].canonical_name
+
+    def display_name(self, entity_id: str, cutoff: int) -> str | None:
+        """cutoff 시점에 독자가 아는 이름.
+
+        정식 이름이 아직 공개 전이면(예: 정식 이름 "카이든", 1권 독자에게는 "회색 기사") 그때까지
+        알려진 호칭 중 가장 먼저 알게 된 것을 돌려준다. 아는 이름이 없으면 None.
+        """
+        entity = self.entities[entity_id]
+        known = sorted(
+            (a.known_seq, a.text) for a in entity.aliases if a.known_seq is not None and a.known_seq <= cutoff
+        )
+        if not known:
+            return None
+        if any(text == entity.canonical_name for _, text in known):
+            return entity.canonical_name
+        return known[0][1]
 
     def kind(self, entity_id: str) -> str:
         return self.entities[entity_id].kind

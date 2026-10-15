@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from spoiler_rag.config import ENTITIES_PATH, LOG_PATH, NOVEL_PATH, PROGRESS_PATH
+from spoiler_rag.config import ENTITIES_PATH, LOG_PATH, NOVEL_PATH, PATHS, PROGRESS_PATH, SUMMARIES_PATH
 from spoiler_rag.llm import DEFAULT_MODEL, try_create_claude
 from spoiler_rag.models import Turn
 from spoiler_rag.pipeline import Answer, SpoilerSafeRAG
@@ -34,7 +34,7 @@ st.set_page_config(page_title="Spoiler-safe 소설 도우미", page_icon="📖")
 @st.cache_resource
 def load_rag() -> SpoilerSafeRAG:
     generator, _ = load_generator()
-    return SpoilerSafeRAG.build(NOVEL_PATH, ENTITIES_PATH, generator=generator, log_path=LOG_PATH)
+    return SpoilerSafeRAG.build(NOVEL_PATH, ENTITIES_PATH, generator=generator, log_path=LOG_PATH, summaries_path=SUMMARIES_PATH)
 
 
 @st.cache_resource
@@ -106,6 +106,18 @@ with st.sidebar:
         progress.current_sequence / corpus.max_sequence,
         text=f"허용 범위: 문단 1–{progress.current_sequence} / 전체 {corpus.max_sequence}",
     )
+
+    n_entities = len(rag.catalog.entities)
+    if PATHS.manual_entities:
+        st.caption(f"인물 사전: 지정한 사전 · {n_entities}개")
+    elif n_entities:
+        st.caption(f"인물 사전: 소설에서 자동 추출 · {n_entities}개")
+    else:
+        st.warning(
+            "인물 사전이 아직 없어 인물 인식·인물 상태 기능이 꺼져 있어요. "
+            "`run_app.bat`으로 다시 열거나 `python -m spoiler_rag.prepare`를 실행하세요(Claude 필요).",
+            icon="ℹ️",
+        )
 
     st.divider()
     use_llm = st.toggle(

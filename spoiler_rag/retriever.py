@@ -71,6 +71,10 @@ class SpoilerSafeRetriever:
                 return c
         return None
 
+    def recent(self, cutoff: int, n: int = 2) -> list[Chunk]:
+        """허용 범위의 마지막 n개 chunk. 요약에는 아직 반영되지 않은 가장 최근 장면을 보충한다."""
+        return self._in_range(cutoff)[-n:]
+
     def timeline(self, cutoff: int, limit: int = 16) -> list[Chunk]:
         """줄거리 요약용: 허용 범위 전체를 서술 순서로, 장마다 최소 하나씩 고르게 뽑는다."""
         allowed = self._in_range(cutoff)

@@ -44,7 +44,8 @@ class Chunk:
     # entity_id -> 독자가 이 chunk에서 해당 엔티티를 "알 수 있게 되는" sequence.
     # 보통 chunk의 sequence_end이지만, 나중에 정체가 공개되는 별칭은 공개 시점이 된다.
     mentions: dict[str, int] = field(default_factory=dict)
-    content_type: str = "raw_chunk"
+    content_type: str = "raw_chunk"  # raw_chunk | chapter_summary | book_summary | character_snapshot
+    location: str = ""  # 파생 레코드처럼 "N권 M장"으로 표현하기 어려운 경우의 표시 이름
 
     @property
     def has_position_metadata(self) -> bool:
@@ -52,7 +53,7 @@ class Chunk:
 
     @property
     def location_label(self) -> str:
-        return f"{self.book_number}권 {self.chapter_number}장"
+        return self.location or f"{self.book_number}권 {self.chapter_number}장"
 
     def entity_ids_known_at(self, cutoff: int) -> set[str]:
         return {eid for eid, seq in self.mentions.items() if seq <= cutoff}

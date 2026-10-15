@@ -21,6 +21,7 @@ from .models import Chunk, Progress, Turn
 from .retriever import SpoilerSafeRetriever
 from .router import QueryType, route
 from .store import QueryLogger
+from .summaries import DerivedIndex, build_in_memory
 from .verifier import Verification, verify
 
 NEUTRAL_ANSWER = "현재 읽은 범위의 근거만으로는 확인할 수 없어요."
@@ -36,6 +37,27 @@ class Answer:
     verification: Verification | None = None
     blocked_ids: list[str] = field(default_factory=list)
     note: str = ""
+
+
+def load_sources(
+    novel_path: str | Path,
+    entities_path: str | Path | None,
+    paragraphs_per_chunk: int = 2,
+) -> tuple[Corpus, list[Chunk], EntityCatalog]:
+    """소설과 사전을 읽어 chunk에 엔티티를 태깅한다.
+
+    사전 파일이 아직 없으면(자동 추출 전) 빈 사전으로 진행한다. 이때 인물 인식·스냅샷은 동작하지 않지만
+    검색·요약·스포일러 경계는 그대로 동작한다.
+    """
+    if entities_path and Path(entities_path).exists():
+        catalog, meta = EntityCatalog.load(entities_path)
+    else:
+        catalog, meta = EntityCatalog([]), {}
+    stem = Path(novel_path).stem
+    corpus = load_novel(novel_path, meta.get("series_id") or stem, meta.get("series_title") or stem)
+    chunks = chunk_corpus(corpus, paragraphs_per_chunk=paragraphs_per_chunk)
+    catalog.bind(corpus, chunks)
+    return corpus, chunks, catalog
 
 
 def _topic_josa(word: str) -> str:
@@ -55,10 +77,12 @@ class SpoilerSafeRAG:
         generator: Generator | None = None,
         logger: QueryLogger | None = None,
         history_turns: int = 4,
+        derived: DerivedIndex | None = None,
     ):
         self.corpus = corpus
         self.chunks = chunks
         self.catalog = catalog
+        self.derived = derived or DerivedIndex(corpus.series_id, [])
         self.retriever = SpoilerSafeRetriever(chunks, catalog)
         self.generator = generator
         self.logger = logger or QueryLogger(None)
@@ -72,12 +96,12 @@ class SpoilerSafeRAG:
         paragraphs_per_chunk: int = 2,
         generator: Generator | None = None,
         log_path: str | Path | None = None,
+        summaries_path: str | Path | None = None,
     ) -> "SpoilerSafeRAG":
-        catalog, meta = EntityCatalog.load(entities_path)
-        corpus = load_novel(novel_path, meta["series_id"], meta.get("series_title", ""))
-        chunks = chunk_corpus(corpus, paragraphs_per_chunk=paragraphs_per_chunk)
-        catalog.bind(corpus, chunks)
-        return cls(corpus, chunks, catalog, generator, QueryLogger(log_path))
+        """`summaries_path`의 캐시가 유효하면 쓰고, 빠진 부분은 추출식으로 메모리에서 채운다."""
+        corpus, chunks, catalog = load_sources(novel_path, entities_path, paragraphs_per_chunk)
+        derived = build_in_memory(corpus, chunks, catalog, summaries_path)
+        return cls(corpus, chunks, catalog, generator, QueryLogger(log_path), derived=derived)
 
     # ---------------------------------------------------------------- progress
 
@@ -95,10 +119,15 @@ class SpoilerSafeRAG:
         r = self.retriever
 
         if qtype is QueryType.SUMMARY:
-            candidates = r.timeline(cutoff)
+            summaries = self.derived.summary_context(cutoff)
+            # 요약이 있으면 요약 + 가장 최근 장면, 없으면 원문 타임라인으로 대체한다.
+            candidates = summaries + r.recent(cutoff, 2) if summaries else r.timeline(cutoff)
         elif qtype is QueryType.CHARACTER:
-            candidates = r.by_entities(character_ids, cutoff, limit=8) + r.hybrid(
-                question, cutoff, top_k=4, boost_entities=entity_ids
+            snapshots = [s for e in character_ids if (s := self.derived.latest_snapshot(e, cutoff))]
+            candidates = (
+                snapshots
+                + r.by_entities(character_ids, cutoff, limit=8)
+                + r.hybrid(question, cutoff, top_k=4, boost_entities=entity_ids)
             )
         elif qtype is QueryType.RELATION:
             candidates = r.by_entities(character_ids[:2], cutoff, require_all=True, limit=8) + r.hybrid(
@@ -208,14 +237,20 @@ class SpoilerSafeRAG:
         cutoff: int,
     ) -> Answer:
         if qtype is QueryType.FIRST_APPEARANCE and entity_ids:
-            name = self.catalog.name(entity_ids[0])
+            # 정식 이름이 아직 공개 전일 수 있으므로 이 시점에 독자가 아는 이름으로 부른다.
+            name = self.catalog.display_name(entity_ids[0], cutoff)
             first = self.retriever.first_mention(entity_ids[0], cutoff)
-            if first:
+            if first and name:
                 text = f"'{name}'{_topic_josa(name)} {first.location_label}에서 처음 언급돼요. [{first.chunk_id}]"
                 return Answer(text, [first], qtype, "extractive", cutoff)
 
         lines = ["Claude가 연결되지 않아 검색된 근거 문단을 그대로 보여드려요.", ""]
-        for c in evidence[:4]:
+        limit = len(evidence) if qtype is QueryType.SUMMARY else 4
+        for c in evidence[:limit]:
+            if c.content_type != "raw_chunk":
+                # 요약·상태 레코드는 이미 짧고 줄 단위로 근거 ID가 붙어 있어 자르지 않는다.
+                lines.append(f"**{c.location_label}** [{c.chunk_id}]\n{c.text}\n")
+                continue
             excerpt = c.text.replace("\n\n", " ")
             if len(excerpt) > 220:
                 excerpt = excerpt[:220] + "…"

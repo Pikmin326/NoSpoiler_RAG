@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .config import ENTITIES_PATH, LOG_PATH, NOVEL_PATH
+from .config import ENTITIES_PATH, LOG_PATH, NOVEL_PATH, SUMMARIES_PATH
 from .llm import DEFAULT_MODEL, try_create_claude
 from .pipeline import SpoilerSafeRAG
 
@@ -30,7 +30,7 @@ def main() -> None:
         if generator is None:
             print(f"[알림] {reason} 검색 결과만 표시합니다.\n")
 
-    rag = SpoilerSafeRAG.build(NOVEL_PATH, ENTITIES_PATH, generator=generator, log_path=LOG_PATH)
+    rag = SpoilerSafeRAG.build(NOVEL_PATH, ENTITIES_PATH, generator=generator, log_path=LOG_PATH, summaries_path=SUMMARIES_PATH)
     progress = rag.progress_for(args.book, args.chapter, user_id="cli")
     answer = rag.ask(args.question, progress)
 

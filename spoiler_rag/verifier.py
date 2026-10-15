@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 from .entities import EntityCatalog
 from .models import Chunk
 
-CITATION = re.compile(r"\[(C\d{4})\]")
+# C: 원문 chunk, S: 장 요약, B: 권 요약, P: 인물 스냅샷
+CITATION = re.compile(r"\[([CSBP]\d{4})\]")
 
 META_SPOILER_PHRASES = (
     "나중에 밝혀",
