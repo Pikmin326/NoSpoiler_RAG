@@ -12,6 +12,9 @@ __pycache__/
 data/progress.json
 data/logs/
 
+# 사용자 개인정보
+docs/
+
 # 비밀 정보
 .env
 *.key
